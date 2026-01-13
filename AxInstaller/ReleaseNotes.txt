@@ -1,0 +1,34 @@
+AxInstaller Release 13012026
+
+Issues Fixed:
+1. TASK-4217 – Remove subdirectory error
+   - Fixed failure while removing subdirectory:
+     D:\Agilelabs Applications\Vintage\AxpertWeb114\AxpertStudio\ManualActionRequired\Version 11.4\Release1
+   - While applying ARM patches, the following files and folder are now skipped:
+     Files: AppSettings.ini, web.config, appsettings.json, service_key.json
+     Folder: SecureData
+
+Enhancements:
+1. Bulk install support for scripts and structures across multiple schemas
+   Command:
+   bulkinstall <product_version> <from_release> <to_release> <filename>.txt -web
+   Example:
+   bulkinstall 11.4 release5 release15 schemas_csv.txt -web
+
+2. Support to upgrade any version to the 11.4 base version
+   Command:
+   prepare base <product_version>
+   Example:
+   prepare base 11.4
+
+Upgrade to 11.4:
+1. Execute:
+   prepare base <product_version>
+2. Apply patches using:
+   install <product_version> <release_no>
+   Example:
+   prepare base 11.4
+   install 11.4 release38
+
+Important Note:
+Version 11.4 must contain a basecode folder. The folder structure under basecode must match the release patches structure.
