@@ -1,0 +1,305 @@
+Enhancements:
+
+1)Delete Command Now Removes Connection from AxApps
+
+	-Earlier config delete <appname> command removed connection details only from appsetting.config.
+	-Enhanced command to remove the corresponding DB connection details from axapps.xml.(including axdef if present)
+
+Note : Active connections are still protected and cannot be deleted.
+
+2)In 11.4, in DataMigration11x.sql file the sql statements which is said to execute manually are present at the start of the script file,should need to be removed,as it might cause error when upgrade the version using prepare base <version> command in AxInstaller.
+
+Since we have enhanced to provide those statements in an userinstruction.txt file,do remove them from the script file before pushing them to GIT.
+
+3)Migration SQL files must follow Axpert SQL rules:
+
+<<
+insert into ...
+>>
+
+Statements must not end with a semicolon (;).
+
+4)Protected Configuration Files During Plugin Installation.
+
+During pulgin installation,configuration files must not be overwritten automatically. Those files are now skipped from auto-replacement across all the folders
+
+Files Skipped (Manual Update Required) :
+
+	-AppSettings.json 
+	-AppSettings.ini
+	-AppSettings.config 
+	-web.config 
+	-axiConfig.json
+
+If any of the above files are received through Git plugin folder: 
+	-They are moved to the ManualActionRequired folder 
+	-Existing local files remain unchanged 
+	-UserInstruction will be displayed with the path of the 'ManualActionRequired' folder
+	-Users must review and apply changes manually 
+
+5)Introduction of -web Installation.
+
+Installation of only structure and script files using '-web' has been introduced for plugin installation.
+This New command will install and execute the structures and scripts which are placed inside the 'Structures' folder of the plugin folder for the active schema.
+
+Syntax :
+	install "<pluginname>" -web
+
+example :
+	install "Plugin1" -web
+
+Note : Web files of the respective plugin should already be installed before using '-web' command (just like the '-web' Patch Installation)
+
+6) Display of Plugin ReadMe Instructions
+
+During Plugin Installation, Installer checks for the presence of a <PluginName>-ReadMe.md file inside the plugin directory.
+
+If the ReadMe file exists, the installer displays the user instruction to compelete the configuration along with the path of the readme file.This ensures users follow any required configuration or post-installation steps specific to the plugin.
+
+7) Execution of Data Migration SQL Scripts
+AxInstaller executes data migration scripts based on the source version defined in config file.
+
+If source version is 10.x
+ → Executes: Data_Migration_10X.sql
+
+If source version is 11.x
+ → Executes: Data_Migration_11X.sql
+
+These scripts are executed automatically during version upgrade, after the after_import_script.sql scripts.
+
+Additional Manual Step for 11.x Upgrades:
+For 11.x PostgreSQL environments using AXDEF schema, certain table data must still be migrated manually.
+The installer adds these instructions to the Manual Action Required file.
+Tables to be migrated manually:
+axvarcore
+axp_customdatatype
+axpdef_language
+tstructscripts
+iviewscripts
+The instruction file also includes the necessary SQL statements with schema placeholders such as:
+{runschema} , {defschema} , {axdef}
+Users must replace these with the appropriate schema names before execution.
+Note: Migration SQL script files must adhere to the standard Axpert SQL formatting rules. Each SQL statement should be enclosed within << >> markers and must not end with a semicolon (;). 
+For example, 
+<<
+insert into ....
+>>
+
+8)  Error Logging
+Exception errors occurring during patch installation are captured in a text file.
+At the end of command execution, all captured errors are written to:
+<Basepath>\AxInstallerErrorLog\InstallationError_<timestamp>.txt
+
+9) ZIP File Handling During Git Patch Download
+AxInstaller safely handles .zip files found in the Git repository during patch download.
+ZIP files are not downloaded automatically
+No exception is thrown if a ZIP file is found.
+Instead, a manual instruction is added to the ManualActionRequired instruction file along with the download URL
+Patch processing then continues with the remaining files without interruption.
+
+10) Version-Based Prompt Improvements
+Scenario:
+10.x versions, Dev WebCode path and Dev Script path will NOT be prompted
+11.4 version, Dev Script path will NOT be prompted
+Prompts now appear only when applicable.
+
+11) Prepare Base Support for MSSQL
+The prepare base command supports MSSQL environments during version upgradation
+GuideLines : 
+While upgrading, must provide:
+In Config file, current version number → Example: 10.9 or 11.3
+Release can be set to the corresponding base/release version in config
+Then execute Prepare base 11.4 command to upgrade.
+
+12) Improved ARM and Developer Studio Folder Clearing 
+Patch application logic has been enhanced to ensure proper directory clearing for: 
+-ARMAPI 
+-DeveloperStudio 
+Only intended folders are cleared before patch installation, preventing accidental removal of unrelated files. 
+ 
+13) Protected Configuration Files During Patch Updates 
+During patch installation, certain environment-specific configuration files must not be overwritten automatically. 
+These files are now skipped from auto-replacement across the following folders: 
+Applicable Folders :
+
+	-Axpert WebScripts 
+	-Axpert Web 
+	-ARMScripts 
+	-DeveloperStudio 
+	-ARMAPI 
+	-ARMServices 
+	-AgileConnect 
+
+Files Skipped (Manual Update Required) :
+
+	-AppSettings.json 
+	-AppSettings.ini
+	-AppSettings.config 
+	-web.config 
+	-service_key.json 
+	-axapps.xml 
+	-axprops.xml 
+
+Additional: 
+In ARMAPI, Folder Skipped: SecureData 
+The SecureData folder inside ARMAPI is now fully protected and will not be cleared or modified automatically. 
+
+If any of the above files are received through Git patches: 
+	-They are moved to the ManualActionRequired folder 
+	-Existing local files remain unchanged 
+	-Users must review and apply changes manually 
+
+14) Configuration Reload Support After Git URL Changes 
+When the Git repository URL is modified, configuration values must be refreshed. 
+Enhancement includes: 
+	1)Automatic configurations reload after updating the Git URL 
+	2)Introduction of a new command: config reload 
+		This ensures updated or New application settings take effect immediately without restarting AxInstaller. 
+ 
+15) Manual Instructions are Written to File.Previously, manual action messages were printed on the console. 
+	-All manual action instructions are written to a file inside ManualActionRequired folder 
+	-UsersInstruction file is placed in the WebCode path of the Schema. 
+	-The Instruction note to fine the find for manual handling along with file path is displayed on the condole so that it can be reviewed for the required changes. 
+	-This prevents loss of important instructions after console sessions end.  
+Note: The config reload command is available as a standalone command for manually reloading configuration settings when required. 
+However, when the Git URL is updated, AxInstaller will now automatically reload the configuration as part of the update process. Users do not need to run config reload separately after changing the Git URL. 
+
+16) Plugin Installation Enhancement
+During plugin installation:
+- Modified files are replaced with the latest version from Git.
+- Newly added files are copied to the destination.
+- Existing files that are not part of the plugin package remain unchanged.
+- No complete folder cleanup is performed.
+- Existing configuration files are retained and configuration files received from Git are moved to the 'Manual Action Required' folder, user instructions are generated for manual review.
+
+17) PluginAPI IIS Hosting Enhancement
+AxInstaller is enhance to Automate IIS site creation and configuration during plugin installation
+Deployment Flow.
+Plugin API files are downloaded from Git and  are copied to:
+	....\Arm_Agileconnect\ARM\AxPlugins\<ApiFolderName>
+Physical path for hosting the Site is received as 'IIS Plugin Application Path' and stored in the appsetting.config file along with the other deatils of the schema.
+To add the path use 'config new' or 'config edit' commands
+
+->Existing Plugin API Handling
+	-During plugin installation, AxInstaller copies the plugin API files from the downloaded plugin package to the corresponding Plugin API directory.
+	-Existing files are overwritten if a newer version of the same file is available in the plugin package.
+	-Files that are not part of the plugin package remain unchanged.
+	-The installation process does not perform a complete cleanup of the existing Plugin API directory.
+
+->IIS Configuration Logic
+After the Plugin API files are deployed, AxInstaller automatically configures IIS for the plugin API under ARM site.The IIS Application name and Application Pool name are derived from the Plugin API folder name.The installer verifies :
+	-Checks whether the IIS Site already exists.
+	-Checks whether the corresponding Application Pool already exists.
+	-Verifies that the IIS Site points to the expected physical path.
+	
+	Case 1 : If the Plugin API is already configured in IIS:
+		-> AxInstaller verifies the IIS configuration.
+		-> Existing IIS Application and Application Pool are reused.
+		-> No duplicate IIS Applications or Application Pools are created.
+	Case 2 : If Plugin API is new
+		-> Application Pool and IIS Site is created.
+		->Required folder permissions are assigned,Site and Pool are started.
+
+->Application Pool Handling During Installation
+The current implementation does not explicitly stop the IIS Application Pool before deploying files.Files are copied directly to the target Plugin API location.IIS configuration is then validated and updated as part of the installation process.
+Naming Convention
+    * IIS Application Name     	        = Plugin API folder name.
+    * IIS Application Pool Name      = Plugin API folder name followed by "Pool".
+	Example :
+		1.Plugin API Folder	   -	AxiApi
+		2.IIS Application	   -	AxiApi
+		3.Application Pool	   -	AxiApiPool
+Important Note 
+->Stop IIS only when necessary. For most new plugin installations, stopping IIS is not required. 
+
+18) ARM Folders Installation above Release43
+-Installer is now enhanced to replace the new files without clearing all the existing files in the ARM folder for the Release43 onwards.
+-ARM folder lower than Release43 will get compelte folder cleanup and new files gets places, whereas for Release43 and above,only changed files will be replaced,other files stays intact.
+
+19) Logging the File version details.
+	For better debugging, details of the AxInstaller File which is used currently will be logged at the start of the log file.This helps in better understanding of the errors/issues reported and root cause can be analyzed based on the file version.
+
+20)Initiating Placing of files only when Git Pull is sucess.
+	While installing patch or plugin or packages in the Installer, Initially Files will be pulled from the GIT Repo to the current working directory.If any error occures at any specific files,Installer skips pulling that file and during placing of files to the target folder that skipped file will be missed.Installer is now enhanced to raise execption and stop the process of placing files if any file is skipped or missed during git pull due to any errors.
+This prevents from unintended misplacement of files.
+
+
+
+
+IssuesFixes :
+
+1)Active schema getting deleted.
+	-Fixed active schema getting removed from axapps on first command execution in Installer.
+	-Existing active connections are preserved
+	-When adding a new connection, if invalid/incorrect DB connection details are given,that specific schema is removed from the Axapps.xml 
+
+2)Mismatch of the folder for cloning from Git
+	-Configuration reload now ensures that the complete configuration, including the patch local path, is refreshed correctly.
+	-This guarantees that files cloned from Git are placed into the correct local release directory.
+
+3)Prompts need to be sequenced properly according to versions
+	-Version and Release number is now prompted at the 3rd and 4th in order, next to AccessToken.
+	-Prompts are displayed compeletely based on version:
+
+		Version		Prompts Shown
+		10.x		WebCode, DevCode, RunScripts
+		11.0 – 11.3	WebCode, DevCode, RunScripts, DevScripts
+		11.4		WebCode, DevCode, RunScripts
+
+4)Scripts not executing.
+Issue Reported -In the latest released AxInstaller.exe,The Script were imported but was not executed.
+
+MSSQL Scripts applied to Active PostgreSQL Schema
+	-Executing install commands right after adding a new connection,the Installer considers the new schema as the active connection and proceeds the installation.
+	-Fixed the issue by reading the activeconnection from appsettings.config after new connection is added, any command provided after it will be executed accurately.
+
+DevScripts Path field is currently not validated for 11.3
+	-Issue is fixed by removing the validation flag from the DevScripts prompt as the validation flag was declared false.
+	-Currently, For versions 11.0 to 11.3 Users will be asked to provide the DevScripts path mandatorly.
+	
+DevCode Path field is currently not validated for 10.x
+	-Issue is fixed by removing the validation flag from the DevCode path prompt
+	-For 10x versions,The Installer will now display the hint before the DevCode path prompt and will request the user to provide the DevCode path mandatorly.
+
+NOTE : Mandatory Prompts Display for new connection based on versions :
+			Versions			Mandatory Prompts
+			10.x			WebCode, Hint+DevCode, RunScripts
+			11.0 – 11.3		WebCode, DevCode, RunScripts, DevScripts
+			11.4			WebCode, DevCode, RunScripts
+			
+5) ARMScripts path getting changed to ARMAPI Path.
+	-Issue is fixed.When a new connection is added, the armscriptpath was declared with the armapipath value from the userinput.
+	-Now it altered to read the input values precisely.
+
+6) 'SQL not ended properly' error in Oracle Scripts
+	- SQL commands in the files must follow these rules :
+		1. Commands should be enclosed with double open&close arrow braces(i.e- << and >>).
+		2. Oracle Insert Commands must not end with semi-colon(;).
+	-File naming convention :
+		1. Data_Migration_10x.sql
+		2. Data_Migration_11x.sql
+	
+7) Http Time-out error in dev.axi site
+	- Enhancement is done and issuse is fixed.
+	- Code has been modified to retry cloning and download the failed files due to http 'time-out' errors.
+
+TKT-0993 - Plugin URL Not Refreshed After Config Reload 
+Issue: When the Plugin URL is changed in AxInstaller, the application displays “Config Reloaded”, indicating 
+that the configuration has been successfully reloaded. However, the updated Plugin URL is not actually 
+refreshed. Even after manually executing the Config Reload command, AxInstaller continues to use the 
+previously configured Plugin URL. When the List Plugins command is executed, the plugins displayed are still 
+being retrieved from the previously configured URL instead of the newly updated Plugin URL. 
+Implemented Fix:  
+1. When the plugin URL was given, it was assigned to patchurl variable mistakenly. It is fixed now. 
+2. Plugin list was created once, and it was reused every time for list command. Now it has been changed to 
+create a list of plugins whenever the list command is given. 
+
+TKT-0982 - With the latest AxInstaller.exe, when installing only the Structures folders of AxiCMD using the install "AxiCMD" -web command, the installer is also placing the PluginScripts folder/files, which should not be included in a structures-only installation
+
+TKT-0959 -1) Prevent AxInstaller from Overwriting Existing Files in the Installation Directory
+	Changes had been applied to the properties of the installation kit preparation software, which will now prompts for users' confirmation before overwriting any existing files.
+2) ' -web' command in patch installation was executing the structures of plugin
+	During  installing patch strutures using -web command, Installer was executing the plugin -web part of code as the patch or plugin value was not assigned properly to the variable and thus it was executing the plugin -web code by default. Now It is fixed
+3) .gif , .jpg files cloning 
+	During the installation,when pulling the files from GIT Repo, files with .gif/.jpg extentions were causing the installer to exit without any error or any exceptions.
+Movefilex, a Windows function was silently closing the EXE while overwriting the .part file with the actual file. It is now fixed with copyfile() and deletefile() functions rather than using movefilex() function.
